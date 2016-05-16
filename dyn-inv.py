@@ -18,7 +18,7 @@ def main(du_url, os_token):
     if os.path.isfile(os_token):
         try:
             os_token_file = open('files/keystone-token.txt')
-            os_token = os_token_file.read()
+            os_token = os_token_file.read().strip()
         except Exception, err:
             raise err
 
