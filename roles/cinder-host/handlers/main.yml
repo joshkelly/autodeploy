@@ -1,0 +1,3 @@
+---
+- name: restart pf9-cindervolume
+  service: name=pf9-cindervolume state=restarted

@@ -1,0 +1,27 @@
+---
+- name: Set Cinder overrides
+  ini_file:
+    state: present
+    section: DEFAULT
+    option: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: volume_driver, value: cinder.volume.drivers.netapp.common.NetAppDriver }
+    - { name: netapp_storage_family, value: ontap_clsuter }
+    - { name: netapp_storage_protocol, value: nfs }
+    - { name: nfs_shares_config, value: /opt/pf9/etc/pf9-cindervolume/netapp_exports }
+    - { name: netapp_server_hostname, value: "{{ netapp_server_hostname }} " }
+    - { name: netapp_server_port, value: "{{ netapp_server_port | isnan }}" }
+    - { name: netapp_login, value: "{{ netapp_login }}" }
+    - { name: netapp_password, value: "{{ netapp_password }}" }
+  notify: restart pf9-cindervolume
+
+- name: Create NFS exports
+  lineinfile:
+    state: present
+    create: yes
+    line: "{{ item.host }}:{{ item.export }}"
+    regexp: "^{{ item.host }}:{{ item.export }}$"
+    dest: /opt/pf9/etc/pf9-cindervolume/netapp_exports
+  with_items: "{{ netapp_exports | default([]) }}"
+  notify: restart pf9-cindervolume

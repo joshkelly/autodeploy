@@ -1,0 +1,6 @@
+---
+- name: Enable & Start pf9-cindervolume
+  service:
+    name: pf9-cindervolume
+    state: started
+    enabled: yes

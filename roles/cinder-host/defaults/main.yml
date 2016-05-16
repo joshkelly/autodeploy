@@ -1,0 +1,6 @@
+---
+# NetApp login credentials
+netapp_login: admin
+netapp_password: ''
+
+netapp_server_port: 80

@@ -1,0 +1,6 @@
+---
+ssh_user: root
+neutron_modules:
+  - 8021q
+  - bonding
+  - bridge
