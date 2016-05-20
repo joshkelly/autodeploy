@@ -1,4 +1,15 @@
 ---
+os_region: KVM01
+os_tenant: service
+ssh_user: root
+du_url: https://blake.platform9.net
+ssh_password: s0upnaz1
+
+dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+  - 4.2.2.2
+
 neutron_sysctl:
   net.bridge.bridge-nf-call-iptables: 1
   net.ipv4.conf.all.rp_filter: 0

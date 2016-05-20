@@ -6,3 +6,10 @@
   with_items:
     - br-ext
     - br-vlan
+
+- template:
+    src: hostProfile.sh.j2
+    dest: /tmp/hostProfile.sh
+    mode: 0740
+
+- command: /tmp/hostProfile.sh
