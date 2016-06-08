@@ -1,0 +1,205 @@
+#!/bin/env python
+
+import requests,json
+import time
+
+_resmgr_endpoint_suffix = '/resmgr/v1'
+_keystone_endpoint_suffix = '/keystone_admin/v2.0/tokens'
+
+
+__LOG = []
+def _log(msg):
+    global __LOG
+    __LOG.append(msg)
+
+def _showlog():
+    global __LOG
+    return ' | '.join(__LOG)
+
+class TimedOutException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __repr__(self):
+        return self.msg
+
+def _login(username, password, tenant, auth_url):
+    """
+    Login using username, password, tenant
+    :param username: user name
+    :param password: password for user
+    :param tenant: tenant to login
+    :param auth_url: Keystone endpoint url
+    :return: Keystone login response json
+    """
+    """
+    Login using username, password, tenant
+    """
+    data = {
+        "auth": {
+            "tenantName": tenant,
+            "passwordCredentials": {
+            "username": username,
+            "password": password
+            }
+        }
+    }
+    r = requests.post(auth_url,
+                      json.dumps(data),
+                      verify=False,
+                      headers={'Content-Type': 'application/json'})
+    r.raise_for_status()
+    return r.json()
+
+def _get_login_token(user, password, tenant, url):
+    keystone_url = ''.join([url, _keystone_endpoint_suffix])
+    login_resp = _login(user, password, tenant, keystone_url)
+    return login_resp['access']['token']['id']
+
+
+def ensure_converged(token, host_id, timeout, du_url):
+    url = ''.join([du_url, _resmgr_endpoint_suffix, '/hosts/', host_id])
+    time.sleep(15)
+    host_info = _do_request(url, 'GET', token, {})
+    elapsed_time = 0
+    success = True
+    while host_info['role_status'] != 'ok':
+        if elapsed_time < timeout:
+            _log('Assigning role to host %s timed out: %d s' % (host_id, timeout))
+            success = False
+            break
+        time.sleep(15)
+        elapsed_time += 15
+        host_info = _do_request(url, 'GET', token, {})
+
+    return success
+
+
+def _remove_role(token, host_id, role_name, role_data, timeout, du_url):
+    url = ''.join([du_url, _resmgr_endpoint_suffix, '/hosts/', host_id, '/roles/', role_name])
+    _do_request(url, 'DELETE', token, role_data)
+    converged = ensure_converged(token, host_id, timeout, du_url)
+    if not converged:
+        raise TimedOutException('Role convergence timed out')
+
+
+def _add_role(token, host_id, role_name, role_data, timeout, du_url):
+    url = ''.join([du_url, _resmgr_endpoint_suffix, '/hosts/', host_id, '/roles/', role_name])
+
+    _do_request(url, 'PUT', token, role_data)
+    converged = ensure_converged(token, host_id, timeout, du_url)
+    if not converged:
+        raise TimedOutException('Role convergence timed out')
+
+
+def _do_request(url, method, token, body):
+    # Set up the headers
+    headers = {'X-Auth-Token': token}
+    headers['Content-Type'] = 'application/json'
+    #headers['Content-type'] = 'json'
+    if method == 'PUT':
+        resp = requests.put(url, data=json.dumps(body), headers=headers)
+    elif method == 'DELETE':
+        resp = requests.delete(url, data=json.dumps(body), headers=headers)
+    elif method == 'GET':
+        resp = requests.get(url, data=json.dumps(body), headers=headers)
+    else:
+        raise Exception('Unsupported method specified for _do_request')
+
+    resp.raise_for_status()
+    return resp.json()
+
+def _get_host_id(hostname, hostip,  token, url):
+    headers = {'X-Auth-Token': token}
+    headers['Content-Type'] = 'application/json'
+    resmgr_endpoint = ''.join([url, _resmgr_endpoint_suffix])
+    _log('resmgr url: %s/hosts' % resmgr_endpoint)
+    resp = requests.get('%s/hosts' % resmgr_endpoint, headers=headers)
+    host_id = None
+    for host in resp.json():
+        if hostname and host['info']['hostname'] == hostname:
+            host_id = host['id']
+            break
+        elif hostip and hostip in host['extensions']['ip_address']['data']:
+            host_id = host['id']
+            break
+
+    _log("Id of the host: " + host_id)
+    return host_id
+
+def main():
+    """
+    Authorizes a resmgr role for a given host
+    """
+    arg_spec = dict(
+            auth_user=dict(required=False),
+            auth_password=dict(required=False),
+            auth_tenant_name=dict(required=False),
+            controller_url=dict(required=True),
+            auth_token=dict(required=False),
+            role_name=dict(required=True),
+            host_name=dict(required=False),
+            host_ip=dict(required=False),
+            role_data=dict(required=False),
+            state=dict(default="present", choices=['present', 'absent']),
+            timeout_secs=dict(default=600, type='int')
+        )
+
+    module = AnsibleModule(
+            argument_spec=arg_spec,
+            supports_check_mode=False,
+            mutually_exclusive=[['auth_token', 'auth_user'],
+                                ['auth_token', 'auth_password'],
+                                ['auth_token', 'auth_tenant_name'],
+                                ['host_name', 'host_ip']]
+    )
+
+    user = module.params['auth_user']
+    passwd = module.params['auth_password']
+    tenant_name = module.params['auth_tenant_name']
+    controller_url = module.params['controller_url']
+    auth_token = module.params['auth_token']
+    host_name = module.params['host_name']
+    host_ip = module.params['host_ip']
+    role_name = module.params['role_name']
+    role_data = {}
+    if module.params['role_data']:
+        role_data = module.params['role_data']
+    state = module.params['state']
+    timeout_secs = module.params['timeout_secs']
+
+    if not auth_token:
+       auth_token = _get_login_token(user, passwd, tenant_name, controller_url)
+
+    _log("Getting host id")
+    try:
+        host_id = _get_host_id(host_name, host_ip, auth_token, controller_url)
+    except Exception, e:
+        _log(str(e))
+        module.fail_json(msg=_showlog())
+    if not host_id:
+        module.fail_json(msg='No host id found.')
+
+    try:
+        if state == 'absent':
+            _remove_role(auth_token, host_id, role_name, role_data,
+                    timeout_secs, controller_url)
+        else:
+            #role_data = json.loads(role_data)
+            if not isinstance(role_data, dict):
+                raise Exception("Not dict %s: %s" % (role_data, type(role_data)))
+            _add_role(auth_token, host_id, role_name, role_data, timeout_secs,
+                    controller_url)
+    except TimedOutException, e:
+        module.fail_json(msg=str(e))
+    #except Exception, e:
+    #    _log(str(e))
+    #    module.fail_json(msg=_showlog())
+
+    _log("Success!")
+
+    module.exit_json(changed=True, msg=_showlog())
+
+from ansible.module_utils.basic import *
+main()
+
