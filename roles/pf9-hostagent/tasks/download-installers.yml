@@ -1,10 +1,12 @@
-- name: Download Platform9 installers
-  connection: local
-  get_url:
-    url: "{{ du_url }}/private/platform9-install-{{ item }}.sh"
-    dest: "files/platform9-install-{{ item }}.sh"
-    headers: "X-Auth-Token:{{ hostvars['localhost']['os_auth_token'] }}"
-    validate_certs: no
+- name: Download Platform9 installer downloader
+  command: curl -O https://raw.githubusercontent.com/platform9/support-locker/master/installer/pf9-download.py
+  args:
+    chdir: /tmp
+
+- name: Download Platform9 installer
+  shell: python /tmp/pf9-download.py --account_endpoint pf9-midonet-test.platform9.net --region {{ os_region }} --user {{ os_username }} --password {{ os_password }} --tenant {{ os_tenant }} --platform {{ item }}
+  args:
+    chdir: /tmp
   with_items:
     - debian
     - redhat

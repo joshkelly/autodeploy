@@ -113,7 +113,6 @@ def _get_host_id(hostname, hostip,  token, url):
     headers = {'X-Auth-Token': token}
     headers['Content-Type'] = 'application/json'
     resmgr_endpoint = ''.join([url, _resmgr_endpoint_suffix])
-    _log('resmgr url: %s/hosts' % resmgr_endpoint)
     resp = requests.get('%s/hosts' % resmgr_endpoint, headers=headers)
     host_id = None
     for host in resp.json():
@@ -198,7 +197,8 @@ def main():
 
     _log("Success!")
 
-    module.exit_json(changed=True, msg=_showlog())
+    #module.exit_json(changed=True, msg=_showlog())
+    module.exit_json(changed=True)
 
 from ansible.module_utils.basic import *
 main()

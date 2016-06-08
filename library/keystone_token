@@ -1,0 +1,78 @@
+#!/bin/env python
+
+import requests,json
+
+_keystone_endpoint_suffix = '/keystone_admin/v2.0/tokens'
+
+
+__LOG = []
+def _log(msg):
+    global __LOG
+    __LOG.append(msg)
+
+def _showlog():
+    global __LOG
+    return ' | '.join(__LOG)
+
+
+def _login(username, password, tenant, auth_url):
+    """
+    Login using username, password, tenant
+    :param username: user name
+    :param password: password for user
+    :param tenant: tenant to login
+    :param auth_url: Keystone endpoint url
+    :return: Keystone login response json
+    """
+    """
+    Login using username, password, tenant
+    """
+    data = {
+        "auth": {
+            "tenantName": tenant,
+            "passwordCredentials": {
+            "username": username,
+            "password": password
+            }
+        }
+    }
+    r = requests.post(auth_url,
+                      json.dumps(data),
+                      verify=False,
+                      headers={'Content-Type': 'application/json'})
+    r.raise_for_status()
+    return r.json()
+
+def _get_login_token(user, password, tenant, url):
+    keystone_url = ''.join([url, _keystone_endpoint_suffix])
+    login_resp = _login(user, password, tenant, keystone_url)
+    return login_resp['access']['token']['id']
+
+def main():
+    """
+    Authorizes a resmgr role for a given host
+    """
+    arg_spec = dict(
+            auth_user=dict(required=True),
+            auth_password=dict(required=True),
+            auth_tenant_name=dict(required=True),
+            controller_url=dict(required=True)
+        )
+
+    module = AnsibleModule(
+            argument_spec=arg_spec,
+            supports_check_mode=False,
+    )
+
+    user = module.params['auth_user']
+    passwd = module.params['auth_password']
+    tenant_name = module.params['auth_tenant_name']
+    controller_url = module.params['controller_url']
+
+    auth_token = _get_login_token(user, passwd, tenant_name, controller_url)
+
+    module.exit_json(changed=True,token=auth_token)
+
+from ansible.module_utils.basic import *
+main()
+

@@ -10,7 +10,7 @@
     role_name: pf9-ostackhost
     state: present
     role_data:
-      novncproxy_base_url: http://{{ vnc_ip }}:6080/vnc_auto.html
+      novncproxy_base_url: "http://{{ vnc_ip }}:6080/vnc_auto.html"
 
 - name: Install midolman role
   role_authorize:
