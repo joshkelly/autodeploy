@@ -3,7 +3,7 @@
   tasks:
     - include: playbooks/keystone.yml
 
-- hosts: hypervisors
+- hosts: all
   tasks:
     - group_by: "key={{ ansible_distribution }}"
 
@@ -19,6 +19,11 @@
 
 - hosts: hypervisors
   gather_facts: False
+  roles:
+    - { role: neutron-prerequisites, when: neutron_plugin == 'OVS' }
+
+- hosts: all
+  gather_facts: False
   tasks:
     - block:
         - name: Set system hostname
@@ -30,9 +35,8 @@
           lineinfile:
             state: present
             dest: /etc/hosts
-            backrefs: yes
             regexp: "^(127.0.1.1).*$"
-            line: "\\1\t{{ inventory_hostname_short }}\t{{ inventory_hostname }}"
+            line: "127.0.1.1\t{{ inventory_hostname_short }}\t{{ inventory_hostname }}"
           register: etc_hosts_result
 
         - name: Restart pf9-hostagent on hostname change
@@ -40,9 +44,10 @@
             name: pf9-hostagent
             state: restarted
           when: hostname_result|changed or etc_hosts_result|changed
-      when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
+      when: (ansible_os_family == "Debian" or ansible_os_family == "RedHat") and
+        manage_hostname|bool == True
   roles:
-    - neutron-prerequisites
+    - ntp
     - pf9-hostagent
 
 - hosts: image_libraries

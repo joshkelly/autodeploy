@@ -1,2 +1,10 @@
 ---
+## Playbook defaults
+
+# Set hostname equal to inventory_hostname
+manage_hostname: True
+
+# Networking defaults
+neutron_plugin: OVS
+
 ssh_user: root
