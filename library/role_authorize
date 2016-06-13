@@ -20,8 +20,9 @@ class TimedOutException(Exception):
     def __init__(self, msg):
         self.msg = msg
 
-    def __repr__(self):
-        return self.msg
+    def __str__(self):
+        return repr(self.msg)
+
 
 def _login(username, password, tenant, auth_url):
     """
@@ -64,7 +65,7 @@ def ensure_converged(token, host_id, timeout, du_url):
     elapsed_time = 0
     success = True
     while host_info['role_status'] != 'ok':
-        if elapsed_time < timeout:
+        if elapsed_time > timeout:
             _log('Assigning role to host %s timed out: %d s' % (host_id, timeout))
             success = False
             break
@@ -139,7 +140,7 @@ def main():
             role_name=dict(required=True),
             host_name=dict(required=False),
             host_ip=dict(required=False),
-            role_data=dict(required=False),
+            role_data=dict(required=False, type='dict'),
             state=dict(default="present", choices=['present', 'absent']),
             timeout_secs=dict(default=600, type='int')
         )

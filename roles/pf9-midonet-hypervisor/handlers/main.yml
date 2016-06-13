@@ -1,0 +1,17 @@
+---
+
+- name: restart libvirt
+  service:
+    name: libvirtd
+    state: restarted
+
+- name: wait for libvirt to settle down
+  pause:
+    seconds: 10
+
+- name: restart pf9-ostackhost
+  service:
+    name: pf9-ostackhost
+    state: restarted
+
+

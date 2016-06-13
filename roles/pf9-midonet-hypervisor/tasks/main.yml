@@ -1,23 +1,28 @@
 ---
-- name: Install ostackhost role
-  role_authorize:
-    auth_tenant_name: "{{ os_tenant }}"
-    auth_user: "{{ os_username }}"
-    auth_password: "{{ os_password }}"
-    #auth_token: "{{ hostvars['localhost']['os_auth_token'] }}"
-    host_ip: "{{ ip_address }}"
-    controller_url: "{{ du_url }}"
-    role_name: pf9-ostackhost
-    state: present
-    role_data:
-      novncproxy_base_url: "http://{{ vnc_ip }}:6080/vnc_auto.html"
 
-- name: Install midolman role
+- name: Wait for sometime for hosts to report back
+  pause:
+    seconds: 60
+
+- name: Install roles
   role_authorize:
-     auth_token: "{{ hostvars['localhost']['os_auth_token'] }}"
-     host_ip: "{{ ip_address }}"
-     controller_url: "{{ du_url }}"
-     role_name: midolman
-     state: present
-     role_data:
-         zookeeper_hosts: "{{ nsdb_hosts }}"
+    auth_token: "{{ hostvars['localhost']['os_auth_token'] }}"
+    host_ip: "{{ ansible_default_ipv4.address }}"
+    controller_url: "{{ du_url }}"
+    role_name: "{{ item }}"
+    state: present
+    role_data: "{{ pf9_role_defaults[item] | default({}) | combine(hostvars[inventory_hostname][item] | default({}) ) }}"
+  with_items:
+    - pf9-ostackhost-neutron
+    - midolman
+
+- name: Update qemu.conf to add /dev/net/tun
+  lineinfile:
+    state: present
+    dest: /etc/libvirt/qemu.conf
+    regexp: "^(cgroup_device_acl).*$"
+    line: "cgroup_device_acl = [ \"/dev/null\", \"/dev/full\", \"/dev/zero\", \"/dev/random\", \"/dev/urandom\", \"/dev/ptmx\", \"/dev/kvm\", \"/dev/kqemu\", \"/dev/rtc\", \"/dev/hpet\", \"/dev/vfio/vfio\", \"/dev/net/tun\" ]"
+  notify:
+  - restart libvirt
+  - wait for libvirt to settle down
+  - restart pf9-ostackhost

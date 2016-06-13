@@ -7,15 +7,15 @@
   tasks:
     - group_by: "key={{ ansible_distribution }}"
 
-- hosts: hypervisors
-  tasks:
-    - name: Copy SSH authentication
-      authorized_key:
-        state: present
-        user: "{{ ssh_user }}"
-        exclusive: no
-        manage_dir: yes
-        key: "{{ lookup('file', 'files/root-key.pub') }}"
+#- hosts: hypervisors
+#  tasks:
+#    - name: Copy SSH authentication
+#      authorized_key:
+#        state: present
+#        user: "{{ ssh_user }}"
+#        exclusive: no
+#        manage_dir: yes
+#        key: "{{ lookup('file', 'files/root-key.pub') }}"
 
 - hosts: hypervisors
   gather_facts: False
@@ -23,6 +23,7 @@
     - { role: neutron-prerequisites, when: neutron_plugin == 'OVS' }
 
 - hosts: all
+#  serial: 2
   gather_facts: False
   tasks:
     - block:
@@ -49,6 +50,7 @@
   roles:
     - ntp
     - pf9-hostagent
+    - pf9-midonet-hypervisor
 
 - hosts: image_libraries
   roles:
