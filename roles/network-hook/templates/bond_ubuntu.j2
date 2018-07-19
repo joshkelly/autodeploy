@@ -1,5 +1,7 @@
 auto bond0
 iface bond0 inet manual
+    {% if {{network_mtu_9000}} == True %}
     mtu 9000
+    {% endif %}
     bond-mode 1
     #bond-slaves [interface name]
