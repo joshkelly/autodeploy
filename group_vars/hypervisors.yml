@@ -17,4 +17,4 @@ neutron_ovs_net_type: vlan
 ceilometer_kvm_instance_disk_path: /opt/pf9/data/instances/
 ceilometer_customize: "False"
 ceilometer_cpu_interval: 600
-network_mtu_9000: "True"
+net_mtu: 9000
